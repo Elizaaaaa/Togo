@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+[RequireComponent(typeof(ParticleSystem))]
 
 public class ParticleSeek : MonoBehaviour {
 
@@ -8,43 +9,54 @@ public class ParticleSeek : MonoBehaviour {
     [SerializeField] float force = 10.0f;
 
     ParticleSystem ps;
+    ParticleSystem.Particle[] particles;
+    ParticleSystem.MainModule particleMain;
 
 	// Use this for initialization
 	void Start () {
         ps = GetComponent<ParticleSystem>();
+        particleMain = ps.main;
 	}
 
     private void LateUpdate()
     {
-        ParticleSystem.Particle[] particles = new ParticleSystem.Particle[ps.particleCount];
+        int particleMax = particleMain.maxParticles;
+        if (particles == null || particles.Length < particleMax)
+        {
+            particles = new ParticleSystem.Particle[particleMax];
+        }
+
         ps.GetParticles(particles);
 
-        Vector3 particleWorldPosition; 
+        float forceDelta = force * Time.deltaTime;
+        Vector3 targetTransformPosition = new Vector3(0,0,0);
+
+        switch (particleMain.simulationSpace)
+        {
+            case ParticleSystemSimulationSpace.Local:
+                {
+                    targetTransformPosition = transform.InverseTransformPoint(target.position);
+                    break;
+                }
+            case ParticleSystemSimulationSpace.Custom:
+                {
+                    targetTransformPosition = particleMain.customSimulationSpace.TransformPoint(target.position);
+                    break;
+                }
+            case ParticleSystemSimulationSpace.World:
+                {
+                    targetTransformPosition = target.position;
+                    break;
+                }
+        }
 
         for (int i = 0; i < particles.Length; i++)
         {
-            ParticleSystem.Particle p = particles[i];
+            Vector3 dirctionToTarget = Vector3.Normalize(targetTransformPosition - particles[i].position);
+            Vector3 speed = (dirctionToTarget * forceDelta);
 
-            particleWorldPosition = new Vector3(0, 0, 0);
-            if (ps.main.simulationSpace == ParticleSystemSimulationSpace.Local)
-            {
-                particleWorldPosition = this.transform.TransformPoint(p.position);
-            }
-            else if (ps.main.simulationSpace == ParticleSystemSimulationSpace.Custom)
-            {
-                particleWorldPosition = ps.main.customSimulationSpace.TransformPoint(p.position);
-            }
-            else
-            {
-                particleWorldPosition = p.position;
-            }
+            particles[i].velocity += speed;
 
-            Vector3 dirctionToTarget = (target.position - particleWorldPosition).normalized;
-            Vector3 speed = (dirctionToTarget * force) * Time.deltaTime;
-
-            p.velocity += speed;
-
-            particles[i] = p;
         }
 
         ps.SetParticles(particles, particles.Length);

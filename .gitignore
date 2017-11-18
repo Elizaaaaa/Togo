@@ -34,3 +34,4 @@ sysinfo.txt
 *.unitypackage
 FX/Library/
 FX/ProjectSettings/
+FX/Temp/
